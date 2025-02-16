@@ -54,9 +54,6 @@ class AuthController extends Controller
 
 
 
-
-
-
     /**
      * Logout untuk Web.
      */

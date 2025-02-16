@@ -5,11 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Draft;
 use Illuminate\Support\Facades\Log;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use App\Models\User;
+
 
 class SupervisorController extends Controller
 {
     public function index()
     {
+        $user = Auth::user();
         // Hitung total pengguna
         $totalKak = \App\Models\Draft::whereNot('status', 'draft')->count();
         $totalPending = \App\Models\Draft::where('status', 'pending')->count();
@@ -125,74 +131,110 @@ class SupervisorController extends Controller
     public function downloadWord($id)
     {
         // Ambil data draft beserta relasi kategori dan user
-        $kaks = \App\Models\Draft::with(['kategori', 'user'])->findOrFail($id);
+        $draft = \App\Models\Draft::with(['kategori', 'user'])->findOrFail($id);
 
-        // Data user pembuat kaks
-        $creator = $kaks->user;
+        // Data user pembuat draft
+        $creator = $draft->user;
 
-        // Path ke template Word
+        // Path ke template Word (pastikan template ada di storage/app/)
         $templatePath = storage_path('app/public/template.docx');
         if (!file_exists($templatePath)) {
             return redirect()->back()->with('error', 'Template dokumen tidak ditemukan.');
         }
 
+        $supervisor = \App\Models\User::where('role', 'supervisor')
+            ->whereHas('kategori', function ($query) {
+                $query->where('nama_divisi', 'Direktur Utama');
+            })->first();
+
+        if (!$supervisor) {
+            return redirect()->back()->with('error', 'Supervisor tidak ditemukan.');
+        }
+
+
         // Load template Word
         $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
 
-        // Replace placeholders dengan data kaks
-        $templateProcessor->setValue('judul', $kaks->judul ?? '');
-        $templateProcessor->setValue('no_doc_mak', $kaks->no_doc_mak ?? '');
-        $templateProcessor->setValue('kategori_program', $kaks->kategori->nama_divisi ?? 'Tidak Diketahui');
-        $templateProcessor->setValue('status', $kaks->status ?? '');
-        $templateProcessor->setValue('indikator', $kaks->indikator ?? '');
-        $templateProcessor->setValue('satuan_ukur', $kaks->satuan_ukur ?? '');
-        $templateProcessor->setValue('volume', $kaks->volume ?? '');
-        $templateProcessor->setValue('latar_belakang', $kaks->latar_belakang ?? '');
-        $templateProcessor->setValue('dasar_hukum', $kaks->dasar_hukum ?? '');
-        $templateProcessor->setValue('gambaran_umum', $kaks->gambaran_umum ?? '');
-        $templateProcessor->setValue('tujuan', $kaks->tujuan ?? '');
-        $templateProcessor->setValue('target_sasaran', $kaks->target_sasaran ?? '');
-        $templateProcessor->setValue('unit_kerja', $kaks->unit_kerja ?? '');
-        $templateProcessor->setValue('ruang_lingkup', $kaks->ruang_lingkup ?? '');
-        $templateProcessor->setValue('produk_jasa_dihasilkan', $kaks->produk_jasa_dihasilkan ?? '');
-        $templateProcessor->setValue('waktu_pelaksanaan', $kaks->waktu_pelaksanaan ?? '');
-        $templateProcessor->setValue('tenaga_ahli_terampil', $kaks->tenaga_ahli_terampil ?? '');
-        $templateProcessor->setValue('peralatan', $kaks->peralatan ?? '');
-        $templateProcessor->setValue('metode_kerja', $kaks->metode_kerja ?? '');
-        $templateProcessor->setValue('manajemen_resiko', $kaks->manajemen_resiko ?? '');
-        $templateProcessor->setValue('laporan_pengajuan_pekerjaan', $kaks->laporan_pengajuan_pekerjaan ?? '');
-        $templateProcessor->setValue('sumber_dana_prakiraan_biaya', $kaks->sumber_dana_prakiraan_biaya ?? '');
-        $templateProcessor->setValue('penutup', $kaks->penutup ?? '');
+        // Fungsi untuk membersihkan teks dari tag HTML dan menjaga bullet point serta baris baru
+        function cleanText($text)
+        {
+            $text = html_entity_decode($text ?? 'N/A', ENT_QUOTES, 'UTF-8'); // Hilangkan encoding HTML (&nbsp;)
+            $text = strip_tags($text, '<ul><ol><li><br>'); // Biarkan tag daftar tetap ada
 
-        // Replace placeholders dengan data user pembuat kaks
-        $templateProcessor->setValue('nama_divisi', $kaks->kategori->nama_divisi ?? 'Tidak Diketahui');
-        $templateProcessor->setValue('username', $creator->username ?? 'Tidak Diketahui');
-        $templateProcessor->setValue('nik', $creator->nik ?? 'Tidak Diketahui');
+            // Konversi <ul> dan <ol> menjadi list PhpWord
+            $text = str_replace(['<ul>', '<ol>'], '', $text);
+            $text = str_replace(['</ul>', '</ol>'], '', $text);
+
+            // Konversi <li> ke format Word dengan bullet
+            $text = preg_replace('/<li>(.*?)<\/li>/', "• $1\n", $text);
+
+            // Konversi <br> ke baris baru di Word
+            $text = str_replace('<br>', "\n", $text);
+
+            return trim($text);
+        }
+
+        // Replace placeholders dengan data draft
+        $templateProcessor->setValue('judul', cleanText($draft->judul));
+        $templateProcessor->setValue('no_doc_mak', cleanText($draft->no_doc_mak));
+        $templateProcessor->setValue('kategori_program', cleanText($draft->kategori->nama_divisi ?? 'Tidak Diketahui'));
+        $templateProcessor->setValue('status', cleanText($draft->status));
+        $templateProcessor->setValue('indikator', cleanText($draft->indikator));
+        $templateProcessor->setValue('satuan_ukur', cleanText($draft->satuan_ukur));
+        $templateProcessor->setValue('volume', cleanText($draft->volume));
+        $templateProcessor->setValue('latar_belakang', cleanText($draft->latar_belakang));
+        $templateProcessor->setValue('dasar_hukum', cleanText($draft->dasar_hukum));
+        $templateProcessor->setValue('gambaran_umum', cleanText($draft->gambaran_umum));
+        $templateProcessor->setValue('tujuan', cleanText($draft->tujuan));
+        $templateProcessor->setValue('target_sasaran', cleanText($draft->target_sasaran));
+        $templateProcessor->setValue('unit_kerja', cleanText($draft->unit_kerja));
+        $templateProcessor->setValue('ruang_lingkup', cleanText($draft->ruang_lingkup));
+        $templateProcessor->setValue('produk_jasa_dihasilkan', cleanText($draft->produk_jasa_dihasilkan));
+        $templateProcessor->setValue('waktu_pelaksanaan', cleanText($draft->waktu_pelaksanaan));
+        $templateProcessor->setValue('tenaga_ahli_terampil', cleanText($draft->tenaga_ahli_terampil));
+        $templateProcessor->setValue('peralatan', cleanText($draft->peralatan));
+        $templateProcessor->setValue('metode_kerja', cleanText($draft->metode_kerja));
+        $templateProcessor->setValue('manajemen_resiko', cleanText($draft->manajemen_resiko));
+        $templateProcessor->setValue('laporan_pengajuan_pekerjaan', cleanText($draft->laporan_pengajuan_pekerjaan));
+        $templateProcessor->setValue('sumber_dana_prakiraan_biaya', cleanText($draft->sumber_dana_prakiraan_biaya));
+        $templateProcessor->setValue('penutup', cleanText($draft->penutup));
+
+        // Replace placeholders dengan data user pembuat draft
+        $templateProcessor->setValue('nama_divisi', 'Direktur Utama');
+        $templateProcessor->setValue('username', cleanText($supervisor->username ?? 'Tidak Diketahui'));
+        $templateProcessor->setValue('nik', cleanText($supervisor->nik ?? 'Tidak Diketahui'));
 
         // Tambahkan tanggal dan tahun
         \Carbon\Carbon::setLocale('id');
-        $updated_at = $kaks->updated_at->translatedFormat('d F Y') ?? 'Tidak Diketahui';
-        $tahun = $kaks->updated_at->format('Y') ?? 'Tidak Diketahui';
-        $templateProcessor->setValue('updated_at', $updated_at);
-        $templateProcessor->setValue('tahun', $tahun);
+        $updated_at = $draft->updated_at ? $draft->updated_at->translatedFormat('d F Y') : 'Tidak Diketahui';
+        $tahun = $draft->updated_at ? $draft->updated_at->format('Y') : 'Tidak Diketahui';
+        $templateProcessor->setValue('updated_at', cleanText($updated_at));
+        $templateProcessor->setValue('tahun', cleanText($tahun));
 
-        // Tambahkan lampiran jika ada
-        $lampiranPath = storage_path('app/public/' . $kaks->lampiran);
-        if ($kaks->lampiran && file_exists($lampiranPath) && exif_imagetype($lampiranPath)) {
+        // **🔹 Menambahkan Lampiran (Gambar) ke Word**
+        $lampiranPath = storage_path('app/public/' . $draft->lampiran);
+
+        if ($draft->lampiran && file_exists($lampiranPath) && exif_imagetype($lampiranPath)) {
             $templateProcessor->setImageValue('lampiran', [
                 'path' => $lampiranPath,
-                'width' => 500,
+                'width' => 500,  // Sesuaikan ukuran gambar
                 'height' => 300,
-                'ratio' => true,
+                'ratio' => true,  // Agar gambar tidak terdistorsi
             ]);
         } else {
             $templateProcessor->setValue('lampiran', 'Lampiran tidak tersedia');
         }
 
         // Simpan file Word sementara
-        $fileName = 'Dokumen KAK ' . $kaks->judul . '.docx';
-        $tempFilePath = storage_path('app/public/' . $fileName);
+        $fileName = 'Dokumen_KAK_' . preg_replace('/[^A-Za-z0-9\-]/', '_', $draft->judul) . '.docx';
+        $tempFilePath = storage_path('app/' . $fileName);
+
         $templateProcessor->saveAs($tempFilePath);
+
+        // Pastikan file benar-benar dibuat sebelum diunduh
+        if (!file_exists($tempFilePath) || filesize($tempFilePath) < 1000) {
+            return redirect()->back()->with('error', 'File Word gagal dibuat atau rusak.');
+        }
 
         // Unduh file
         return response()->download($tempFilePath)->deleteFileAfterSend(true);
@@ -204,14 +246,20 @@ class SupervisorController extends Controller
         // Fetch the kaks data by ID, including related kategori data
         $kaks = \App\Models\Draft::with('kategori')->findOrFail($id);
 
-        // Data user pembuat kaks
-        $creator = $kaks->user;
+        // **Ambil Supervisor** (karena hanya ada 1, ambil yang pertama)
+        $supervisor = User::where('role', 'supervisor')->first();
+        if (!$supervisor) {
+            return redirect()->back()->with('error', 'Supervisor tidak ditemukan.');
+        }
 
-        // Set locale to Indonesian for Carbon
-        \Carbon\Carbon::setLocale('id');
+        // **Gunakan waktu saat ini dalam format Indonesia**
+        Carbon::setLocale('id'); // Set lokal ke Indonesia
+        $currentTime = Carbon::now()->translatedFormat('d F Y'); // Contoh: 15 Februari 2025
 
-        // Format tanggal lengkap dan tahun
-        $updated_at = $kaks->updated_at->translatedFormat('d F Y') ?? 'Tidak Diketahui'; // Format: 21 Januari 2025
+        // **Pastikan Supervisor memiliki divisi, jika kosong isi "Direktur Utama"**
+        $nama_divisi = $supervisor->divisi ?? 'Direktur Utama';
+        $username = $supervisor->username ?? 'Tidak Diketahui';
+        $nik = $supervisor->nik ?? 'Tidak Diketahui';
 
         // Buat instance TCPDF
         $pdf = new \TCPDF(\PDF_PAGE_ORIENTATION, \PDF_UNIT, \PDF_PAGE_FORMAT, true, 'UTF-8', false);
@@ -303,7 +351,7 @@ class SupervisorController extends Controller
         }
         p { 
             text-align: justify; 
-            line-height: 1.6;
+            line-height: 1.0;
             margin-bottom: 10px;
             color: #333;
         }
@@ -345,15 +393,18 @@ class SupervisorController extends Controller
     <p>' . nl2br($kaks->gambaran_umum) . '</p>
     
     <div class="section">B. MAKSUD DAN TUJUAN</div>
-    <p>' . nl2br($kaks->tujuan) . '</p>
+    <p>Maksud dan tujuan kegiatan <b>' . ($kaks->judul ?? '${judul}') . '</b> adalah sebagai berikut:</p>
+     <p>' . nl2br($kaks->tujuan) . '</p>
 
     <div class="section">C. TARGET/SASARAN</div>
-    <p>' . nl2br($kaks->target_sasaran) . '</p>
+    <p>Target/sasaran yang ingin dicapai dalam <b>' . ($kaks->judul ?? '${judul}') . '</b> adalah sebagai berikut:</p>
+   <p>' . nl2br($kaks->target_sasaran) . '</p>
 
     <div class="section">D. UNIT KERJA</div>
     <p>' . nl2br($kaks->unit_kerja) . '</p>
     
     <div class="section">E. RUANG LINGKUP PEKERJAAN</div>
+    <p>Ruang Lingkup dari pelaksanan <b>' . ($kaks->judul ?? '${judul}') . '</b> adalah sebagai berikut:</p>
     <p>' . nl2br($kaks->ruang_lingkup) . '</p>
     
     <div class="section">F. PRODUK/JASA DIHASILKAN</div>
@@ -372,6 +423,7 @@ class SupervisorController extends Controller
     <p>' . nl2br($kaks->metode_kerja) . '</p>
     
     <div class="section">K. MANAJEMEN RISIKO</div>
+    <p>Dalam pelaksanaan pekerjaan $<b>' . ($kaks->judul ?? '${judul}') . '</b> diperlukan mitigasi risiko untuk meminimalisir kemungkinan terjadinya risiko. Risiko yang terjadi seperti:</p>
     <p>' . nl2br($kaks->manajemen_resiko) . '</p>
     
     <div class="section">L. LAPORAN PENGAJUAN PEKERJAAN</div>
@@ -386,13 +438,40 @@ class SupervisorController extends Controller
     <br><br><br><br><br>
     
     <div style="width: 100%; text-align: right;">
-    <span>Jakarta, ' . ($updated_at) . '</span><br><br>
-    <span><b>' . ($kaks->kategori->nama_divisi ?? 'Tidak Diketahui') . '</b></span>
+    <span>Jakarta, ' .  $currentTime  . '</span><br><br>
+    <span><b>' . $nama_divisi .  '</b></span>
 </div>
 <br><br>
 <div style="width: 100%; text-align: right;">
-    <span style="text-decoration: underline; font-weight: bold;">' . ($creator->username ?? 'Tidak Diketahui') . '</span><br>
-    <span>NIP. ' . ($creator->nik ?? 'Tidak Diketahui') . '</span>
+    <span style="text-decoration: underline; font-weight: bold;">'  . $username . '</span><br>
+    <span>NIP. ' . $nik .  '</span>
+</div>
+
+<div class="section">O. LAMPIRAN</div>
+
+<!-- Tambahkan judul dan nomor dokumen -->
+<div style="text-align: center;">
+    <span>' . ($kaks->judul ?? '') . '</span><br>
+    <span>MAK. ' . ($kaks->no_doc_mak ?? '') . '</span>
+</div>
+
+<!-- Lampiran (gambar) -->
+<br><br>
+<div style="text-align: center;">
+    ' . ($kaks->lampiran ? '<img src="' . storage_path('app/public/' . $kaks->lampiran) . '" width="200">' : '${lampiran}') . '
+</div>
+
+<br><br><br><br><br>
+
+<!-- Bagian tanda tangan -->
+<div style="width: 100%; text-align: right;">
+    <span>Jakarta, ' .  $currentTime  . '</span><br><br>
+    <span><b>' . $nama_divisi .  '</b></span>
+</div>
+<br><br>
+<div style="width: 100%; text-align: right;">
+    <span style="text-decoration: underline; font-weight: bold;">'  . $username . '</span><br>
+    <span>NIP. ' . $nik .  '</span>
 </div>';
 
         $pdf->writeHTML($contentHtml, true, false, true, false, '');
@@ -408,14 +487,20 @@ class SupervisorController extends Controller
         // Fetch the kaks data by ID, including related kategori data
         $kaks = \App\Models\Draft::with('kategori')->findOrFail($id);
 
-        // Data user pembuat kaks
-        $creator = $kaks->user;
+        // **Ambil Supervisor** (karena hanya ada 1, ambil yang pertama)
+        $supervisor = User::where('role', 'supervisor')->first();
+        if (!$supervisor) {
+            return redirect()->back()->with('error', 'Supervisor tidak ditemukan.');
+        }
 
-        // Set locale to Indonesian for Carbon
-        \Carbon\Carbon::setLocale('id');
+        // **Gunakan waktu saat ini dalam format Indonesia**
+        Carbon::setLocale('id'); // Set lokal ke Indonesia
+        $currentTime = Carbon::now()->translatedFormat('d F Y'); // Contoh: 15 Februari 2025
 
-        // Format tanggal lengkap dan tahun
-        $updated_at = $kaks->updated_at->translatedFormat('d F Y') ?? 'Tidak Diketahui'; // Format: 21 Januari 2025
+        // **Pastikan Supervisor memiliki divisi, jika kosong isi "Direktur Utama"**
+        $nama_divisi = $supervisor->divisi ?? 'Direktur Utama';
+        $username = $supervisor->username ?? 'Tidak Diketahui';
+        $nik = $supervisor->nik ?? 'Tidak Diketahui';
 
         // Buat instance TCPDF
         $pdf = new \TCPDF(\PDF_PAGE_ORIENTATION, \PDF_UNIT, \PDF_PAGE_FORMAT, true, 'UTF-8', false);
@@ -507,7 +592,7 @@ class SupervisorController extends Controller
         }
         p { 
             text-align: justify; 
-            line-height: 1.6;
+            line-height: 1.0;
             margin-bottom: 10px;
             color: #333;
         }
@@ -549,15 +634,18 @@ class SupervisorController extends Controller
     <p>' . nl2br($kaks->gambaran_umum) . '</p>
     
     <div class="section">B. MAKSUD DAN TUJUAN</div>
-    <p>' . nl2br($kaks->tujuan) . '</p>
+    <p>Maksud dan tujuan kegiatan <b>' . ($kaks->judul ?? '${judul}') . '</b> adalah sebagai berikut:</p>
+     <p>' . nl2br($kaks->tujuan) . '</p>
 
     <div class="section">C. TARGET/SASARAN</div>
-    <p>' . nl2br($kaks->target_sasaran) . '</p>
+    <p>Target/sasaran yang ingin dicapai dalam <b>' . ($kaks->judul ?? '${judul}') . '</b> adalah sebagai berikut:</p>
+   <p>' . nl2br($kaks->target_sasaran) . '</p>
 
     <div class="section">D. UNIT KERJA</div>
     <p>' . nl2br($kaks->unit_kerja) . '</p>
     
     <div class="section">E. RUANG LINGKUP PEKERJAAN</div>
+    <p>Ruang Lingkup dari pelaksanan <b>' . ($kaks->judul ?? '${judul}') . '</b> adalah sebagai berikut:</p>
     <p>' . nl2br($kaks->ruang_lingkup) . '</p>
     
     <div class="section">F. PRODUK/JASA DIHASILKAN</div>
@@ -576,6 +664,7 @@ class SupervisorController extends Controller
     <p>' . nl2br($kaks->metode_kerja) . '</p>
     
     <div class="section">K. MANAJEMEN RISIKO</div>
+    <p>Dalam pelaksanaan pekerjaan <b>' . ($kaks->judul ?? '${judul}') . '</b> diperlukan mitigasi risiko untuk meminimalisir kemungkinan terjadinya risiko. Risiko yang terjadi seperti:</p>
     <p>' . nl2br($kaks->manajemen_resiko) . '</p>
     
     <div class="section">L. LAPORAN PENGAJUAN PEKERJAAN</div>
@@ -590,13 +679,40 @@ class SupervisorController extends Controller
     <br><br><br><br><br>
     
     <div style="width: 100%; text-align: right;">
-    <span>Jakarta, ' . ($updated_at) . '</span><br><br>
-    <span><b>' . ($kaks->kategori->nama_divisi ?? 'Tidak Diketahui') . '</b></span>
+    <span>Jakarta, ' .  $currentTime  . '</span><br><br>
+    <span><b>' . $nama_divisi .  '</b></span>
 </div>
 <br><br>
 <div style="width: 100%; text-align: right;">
-    <span style="text-decoration: underline; font-weight: bold;">' . ($creator->username ?? 'Tidak Diketahui') . '</span><br>
-    <span>NIP. ' . ($creator->nik ?? 'Tidak Diketahui') . '</span>
+    <span style="text-decoration: underline; font-weight: bold;">'  . $username . '</span><br>
+    <span>NIP. ' . $nik .  '</span>
+</div>
+
+<div class="section">O. LAMPIRAN</div>
+
+<!-- Tambahkan judul dan nomor dokumen -->
+<div style="text-align: center;">
+    <span>' . ($kaks->judul ?? '') . '</span><br>
+    <span>MAK. ' . ($kaks->no_doc_mak ?? '') . '</span>
+</div>
+
+<!-- Lampiran (gambar) -->
+<br><br>
+<div style="text-align: center;">
+    ' . ($kaks->lampiran ? '<img src="' . storage_path('app/public/' . $kaks->lampiran) . '" width="200">' : '${lampiran}') . '
+</div>
+
+<br><br><br><br><br>
+
+<!-- Bagian tanda tangan -->
+<div style="width: 100%; text-align: right;">
+    <span>Jakarta, ' .  $currentTime  . '</span><br><br>
+    <span><b>' . $nama_divisi .  '</b></span>
+</div>
+<br><br>
+<div style="width: 100%; text-align: right;">
+    <span style="text-decoration: underline; font-weight: bold;">'  . $username . '</span><br>
+    <span>NIP. ' . $nik .  '</span>
 </div>';
 
         $pdf->writeHTML($contentHtml, true, false, true, false, '');

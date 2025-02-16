@@ -282,7 +282,6 @@
                                         </div>
                                     </div>
                                 </div>
-
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table id="user-table" class="display table table-striped table-hover">
@@ -293,6 +292,8 @@
                                                     <th>NIK</th>
                                                     <th>Role</th>
                                                     <th>Kategori</th>
+                                                    <th>Tanggal Dibuat</th>
+                                                    <th>Tanggal Diperbarui</th>
                                                     <th>Aksi</th>
                                                 </tr>
                                             </thead>
@@ -304,6 +305,10 @@
                                                         <td>{{ $user->nik }}</td>
                                                         <td>{{ $user->role }}</td>
                                                         <td>{{ $user->kategori->nama_divisi ?? '-' }}</td>
+                                                        <td>{{ $user->created_at ? $user->created_at->format('d-m-Y H:i:s') : '-' }}
+                                                        </td>
+                                                        <td>{{ $user->updated_at ? $user->updated_at->format('d-m-Y H:i:s') : '-' }}
+                                                        </td>
                                                         <td>
                                                             <div class='form-button-action'>
                                                                 <button class="btn btn-warning btn-round me-2"
@@ -318,7 +323,6 @@
                                                                     onclick="confirmDelete({{ $user->id }})">
                                                                     <i class="fa fa-trash"></i> Hapus
                                                                 </button>
-
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -327,6 +331,7 @@
                                         </table>
                                     </div>
                                 </div>
+
                             </div>
                         </div>
 
@@ -345,6 +350,7 @@
     <script src="{{ asset('assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js') }}"></script>
     <script src="{{ asset('assets/js/plugin/datatables/datatables.min.js') }}"></script>
     <script src="{{ asset('assets/js/kaiadmin.min.js') }}"></script>
+    <script src="{{ asset('assets/js/logout.js') }}"></script>
 
     <script>
         $(document).ready(function() {
@@ -483,59 +489,7 @@
         </script>
     @endif
 
-    <script>
-        function logoutConfirm(event) {
-            event.preventDefault(); // Mencegah aksi default
 
-            Swal.fire({
-                title: 'Are you sure you want to logout?',
-                text: "You will be logged out of the system.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, logout'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Ambil token dari localStorage
-                    const token = localStorage.getItem("token");
-
-                    if (!token) {
-                        // Jika tidak ada token, langsung redirect ke login
-                        window.location.href = "/login";
-                        return;
-                    }
-
-                    // Panggil API logout
-                    fetch("http://127.0.0.1:8000/api/auth/logout", {
-                            method: "POST",
-                            headers: {
-                                "Authorization": "Bearer " + token,
-                                "Content-Type": "application/json"
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log(data);
-
-                            // Hapus token dari localStorage
-                            localStorage.removeItem("token");
-
-                            // Redirect ke halaman login setelah logout
-                            window.location.href = "/login";
-                        })
-                        .catch(error => {
-                            console.error("Error:", error);
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Oops...',
-                                text: 'Failed to logout! Please try again.'
-                            });
-                        });
-                }
-            });
-        }
-    </script>
 
 </body>
 

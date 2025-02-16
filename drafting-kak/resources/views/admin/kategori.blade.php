@@ -264,6 +264,7 @@
     <script src="{{ asset('assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js') }}"></script>
     <script src="{{ asset('assets/js/plugin/datatables/datatables.min.js') }}"></script>
     <script src="{{ asset('assets/js/kaiadmin.min.js') }}"></script>
+    <script src="{{ asset('assets/js/logout.js') }}"></script>
 
     <script>
         $(document).ready(function() {
@@ -340,7 +341,7 @@
 
 
 
-    <script>
+    {{-- <script>
         function logoutConfirm(event) {
             event.preventDefault();
             Swal.fire({
@@ -353,11 +354,11 @@
                 confirmButtonText: 'Yes, logout'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    window.location.href = '{{ route('logout') }}'; // Redirect ke route logout
+                    window.location.href = '{{ route('web.logout') }}'; // Redirect ke route logout
                 }
             });
         }
-    </script>
+    </script> --}}
 </body>
 
 </html>

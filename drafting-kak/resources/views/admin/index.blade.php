@@ -207,7 +207,9 @@
     <!-- Kaiadmin JS -->
     <script src="{{ asset('assets/js/kaiadmin.min.js') }}"></script>
 
-    <script>
+    <script src="{{ asset('assets/js/logout.js') }}"></script>
+
+    {{-- <script>
         function logoutConfirm(event) {
             event.preventDefault(); // Mencegah aksi default
 
@@ -259,7 +261,7 @@
                 }
             });
         }
-    </script>
+    </script> --}}
 
 
 </body>

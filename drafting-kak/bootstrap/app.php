@@ -16,7 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'csrf' => \App\Http\Middleware\CustomVerifyCsrfToken::class,
             'jwt.auth' => JwtAuthenticate::class, // Daftarkan middleware JWT di sini
         ]);
     })

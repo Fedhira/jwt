@@ -118,6 +118,12 @@
                                         <label for="latar_belakang"><strong>Latar Belakang</strong></label>
                                         <textarea class="editor form-control mb-3" id="latar_belakang" readonly name="latar_belakang">{{ $draft->latar_belakang }}</textarea>
 
+                                        {{-- <label for="latar_belakang"><strong>Latar Belakang</strong></label>
+                                        <div class="form-control mb-3"
+                                            style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                                            {{ strip_tags(html_entity_decode($draft->latar_belakang)) }}
+                                        </div> --}}
+
                                         <label for="dasar_hukum"><strong>Dasar Hukum</strong></label>
                                         <textarea class="editor form-control mb-3" id="dasar_hukum" readonly name="dasar_hukum">{{ $draft->dasar_hukum }}</textarea>
 
@@ -205,29 +211,13 @@
 
     <!-- Kaiadmin JS -->
     <script src="{{ asset('assets/js/kaiadmin.min.js') }}"></script>
+    <script src="{{ asset('assets/js/logout.js') }}"></script>
 
     <!-- Custom Scripts -->
     <script>
         $(document).ready(function() {
             $("#basic-datatables").DataTable();
         });
-
-        function logoutConfirm(event) {
-            event.preventDefault();
-            Swal.fire({
-                title: 'Are you sure you want to logout?',
-                text: "You will be logged out of the system.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, logout'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = '{{ route('logout') }}';
-                }
-            });
-        }
     </script>
 </body>
 

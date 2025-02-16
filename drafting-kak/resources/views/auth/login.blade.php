@@ -58,8 +58,8 @@
                     <i class="fas fa-eye-slash eye-icon" id="togglePassword"></i>
                 </div>
 
-                <a href="#" style="font-weight: bold; text-decoration: underline; float: right"
-                    data-toggle="modal" data-target="#lupaRowModal">Lupa Password</a>
+                {{-- <a href="#" style="font-weight: bold; text-decoration: underline; float: right"
+                    data-toggle="modal" data-target="#lupaRowModal">Lupa Password</a> --}}
                 <button type="submit" name="login">Login</button>
             </form>
         </div>
@@ -77,7 +77,7 @@
     </div>
 
     <!-- Modal Lupa Password -->
-    <div class="modal fade" id="lupaRowModal" tabindex="-1" role="dialog" aria-hidden="true">
+    {{-- <div class="modal fade" id="lupaRowModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header border-0">
@@ -105,7 +105,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> --}}
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>

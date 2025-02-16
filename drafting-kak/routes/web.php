@@ -7,7 +7,7 @@ use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\AuthController;
 
 // Halaman login sebagai halaman awal
-Route::get('/', [AuthController::class, 'showLoginForm'])->name('login');
+Route::get('/', [AuthController::class, 'showLoginForm'])->name('/');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/web/login', [AuthController::class, 'webLogin'])->name('web.login');
 Route::get('/web/logout', [AuthController::class, 'webLogout'])->name('web.logout');
@@ -16,7 +16,7 @@ Route::get('/web/logout', [AuthController::class, 'webLogout'])->name('web.logou
 Route::middleware(['auth.session'])->group(function () {
 
     // ✅ Rute untuk pengguna biasa (User)
-    Route::prefix('user')->group(function () {
+    Route::prefix('user')->middleware('user.auth')->group(function () {
         Route::get('/index', [UserController::class, 'index'])->name('user.index');
         Route::get('/daftar', [UserController::class, 'daftar'])->name('user.daftar');
         Route::get('/draft', [UserController::class, 'draft'])->name('user.draft');
@@ -44,7 +44,7 @@ Route::middleware(['auth.session'])->group(function () {
     });
 
     // ✅ Rute untuk Admin
-    Route::prefix('admin')->group(function () {
+    Route::prefix('admin')->middleware('admin.auth')->group(function () {
         Route::get('/index', [AdminController::class, 'index'])->name('admin.index');
         Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
         Route::get('/kategori', [AdminController::class, 'kategori'])->name('admin.kategori');
@@ -69,7 +69,7 @@ Route::middleware(['auth.session'])->group(function () {
     });
 
     // ✅ Rute untuk Supervisor
-    Route::prefix('supervisor')->group(function () {
+    Route::prefix('supervisor')->middleware('supervisor.auth')->group(function () {
         Route::get('/index', [SupervisorController::class, 'index'])->name('supervisor.index');
         Route::get('/daftar', [SupervisorController::class, 'daftar'])->name('supervisor.daftar');
         Route::get('/laporan', [SupervisorController::class, 'laporan'])->name('supervisor.laporan');

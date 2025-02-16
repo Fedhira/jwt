@@ -192,33 +192,12 @@
     <script src="{{ asset('assets/js/plugin/datatables/datatables.min.js') }}"></script>
     <!-- Kaiadmin JS -->
     <script src="{{ asset('assets/js/kaiadmin.min.js') }}"></script>
-
+    <script src="{{ asset('assets/js/logout.js') }}"></script>
     <script src="https://cdn.ckeditor.com/ckeditor5/35.4.0/classic/ckeditor.js"></script>
     <script>
         document.querySelectorAll('.editor').forEach(editorElement => {
             ClassicEditor.create(editorElement).catch(error => console.error(error));
         });
-    </script>
-
-    <script>
-        function logoutConfirm(event) {
-            event.preventDefault(); // Prevents the default link action
-
-            Swal.fire({
-                title: 'Are you sure you want to logout?',
-                text: "You will be logged out of the system.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, logout'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Redirect to logout.php if confirmed
-                    window.location.href = '{{ route('logout') }}';
-                }
-            });
-        }
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -24,7 +24,10 @@ class RoleMiddleware
 
             // Jika user tidak ditemukan atau role tidak sesuai, berikan forbidden response
             if (!$user || $user->role !== $role) {
-                return response()->json(['error' => 'Forbidden'], 403);
+                return response()->json([
+                    'error' => 'Forbidden',
+                    'message' => 'Failed to access '.$role,
+                ], 403);
             }
         } catch (\Exception $e) {
             return response()->json(['error' => 'Unauthorized'], 401);
